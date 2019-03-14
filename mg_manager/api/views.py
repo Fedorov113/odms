@@ -218,7 +218,7 @@ class MgSampleNewList(APIView):
                 pass
 
         resp = {'ids': mg_sample_ids, 'data': samples_dict, }
-        return HttpResponse(json.dumps(resp), content_type='application/json')
+        return HttpResponse(json.dumps({'fuck': 'fuck'}), content_type='application/json')
 
 
 class MgSampleUpdate(APIView):
