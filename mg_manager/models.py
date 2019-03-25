@@ -13,7 +13,7 @@ class MetaSchema(models.Model):
 
 
 class DatasetHard(models.Model):
-    full_name =  models.CharField(max_length=200)
+    full_name = models.CharField(max_length=200)
     df_name = models.CharField(max_length=200, unique=True)
     df_description = models.CharField(max_length=2000, default='Empty')
 
@@ -145,8 +145,9 @@ class MgFile(models.Model):
     orig_file_location = models.CharField(max_length=1024, blank=True)
     import_success = models.BooleanField(default=False)
 
-    bp = models.IntegerField(default=234)
-    reads = models.IntegerField(default=235)
+    bps = models.BigIntegerField(default=-1)
+    reads = models.BigIntegerField(default=-1)
+    size = models.BigIntegerField(default=-1)
 
     def __str__(self):
         return self.container.__str__() + ' ' + self.strand

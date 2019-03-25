@@ -4,15 +4,17 @@ from rest_framework.views import APIView
 from django.http import HttpResponse
 import json
 from .serializers import *
-from django.db.models import Q
+from django.db.models import Q, Sum
 
 from rest_framework.exceptions import ErrorDetail, ValidationError
 import os, glob
+
 
 class ImportFromAsshole(APIView):
     """
     Used to import data from another asshole system.
     """
+
     def post(self, request):
         """
         Accepts list of folders (dfs) to import
@@ -26,8 +28,8 @@ class ImportFromAsshole(APIView):
         # Construct model objects for samples (container, files, profile)
         # Repeat for all preprocessings
 
-
         return HttpResponse('import view', content_type='application/json')
+
 
 class SourceList(generics.ListCreateAPIView):
     serializer_class = SourceSerializer
@@ -64,6 +66,7 @@ class BiospecimenList(generics.ListCreateAPIView):
         if isinstance(kwargs.get('data', {}), list):
             kwargs['many'] = True
         return super(BiospecimenList, self).get_serializer(*args, **kwargs)
+
 
 class SampleSourceList(generics.ListCreateAPIView):
     serializer_class = SampleSourceSerializer
@@ -172,13 +175,14 @@ class MgSampleNewList(APIView):
         if hdf is not None:
             mg_samples = MgSample.objects.filter(dataset_hard=hdf) \
                 .prefetch_related('containers') \
-                .prefetch_related('containers__files') \
-                .prefetch_related('containers__files__profile').select_related('real_sample__source')
+                .prefetch_related('containers__files').select_related('real_sample__source')
+
         if run is not None:
             mg_samples = MgSample.objects.filter(sequencing_run=run) \
                 .prefetch_related('containers') \
                 .prefetch_related('containers__files') \
                 .prefetch_related('containers__files__profile').select_related('real_sample__source')
+
         if source is not None:
             mg_samples = MgSample.objects.filter(source=source) \
                 .prefetch_related('containers') \
@@ -186,19 +190,23 @@ class MgSampleNewList(APIView):
                 .prefetch_related('containers__files__profile').select_related('real_sample__source')
 
         for sample in mg_samples:
+
             containers = []
+
+            # sample.containers.set(sample.containers.annotate(total_bps=Sum('files__bp')))
             for container in sample.containers.all():
                 files = []
                 for file in container.files.all():
-                    profile = {}
-                    for profile in file.profile.all():
-                        profile = [{
-                            'id': profile.id,
-                            'bp': profile.bp,
-                            'reads': profile.reads,
-                        }]
-                    files.append({'profile': profile, 'id': file.id, 'strand': file.strand, })
-                containers.append({'files': files, 'id': container.id, 'preprocessing': container.preprocessing, })
+                    files.append({'id': file.id,
+                                  'strand': file.strand,
+                                  'bps': file.bps,
+                                  'reads': file.reads,
+                                  'profile': None, })
+
+                containers.append({'files': files,
+                                   'id': container.id,
+                                   'preprocessing': container.preprocessing, })
+
             samples_dict[sample.id] = {
                 'containers': containers,
                 'id': sample.id,
@@ -209,7 +217,6 @@ class MgSampleNewList(APIView):
                 "source": sample.source_id,
                 "library": sample.library_id,
                 "sequencing_run": sample.sequencing_run_id,
-                # "full_name": sample.full_name
             }
             mg_sample_ids.append(sample.id)
             if sample.real_sample is not None:
@@ -218,7 +225,7 @@ class MgSampleNewList(APIView):
                 pass
 
         resp = {'ids': mg_sample_ids, 'data': samples_dict, }
-        return HttpResponse(json.dumps({'fuck': 'fuck'}), content_type='application/json')
+        return HttpResponse(json.dumps(resp), content_type='application/json')
 
 
 class MgSampleUpdate(APIView):
@@ -329,4 +336,3 @@ class MgSampleList(generics.ListCreateAPIView):
 class MgSampleDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
     queryset = MgSample.objects.all()
     serializer_class = MgSampleFullSerializer
-

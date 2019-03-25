@@ -74,7 +74,7 @@ class MgFileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MgFile
-        fields = ['id', 'container', 'strand', 'profile', 'orig_file_location']
+        fields = ['id', 'container', 'strand', 'profile', 'orig_file_location', 'size', 'bps', 'reads']
 
 
 class MgSampleContainerSerializer(serializers.ModelSerializer):
@@ -144,12 +144,13 @@ class MgSampleFullSerializer(serializers.ModelSerializer):
                     cont = MgSampleContainer.objects.create(mg_sample=mg_sample, **container_data)
                     for file_data in files_data:
                         new_file = MgFile(container=cont, **file_data)
+                        print(file_data)
                         if new_file.orig_file_location != '':
                             data = {
                                 'orig_file': new_file.orig_file_location,
                                 'df': mg_sample.dataset_hard.df_name,
                                 'strand': new_file.strand,
-                                'sample': mg_sample.name_on_fs
+                                'sample': mg_sample.name_on_fs,
                             }
                             url = settings.ASSHOLE_URL + 'api/fs/sample/import/'
                             r = requests.post(url, data=json.dumps(data))

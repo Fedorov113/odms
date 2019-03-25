@@ -13,12 +13,22 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf.urls import url
 from django.contrib import admin
 from django.urls import path, include,re_path
 from django.views.generic import TemplateView
 
+
+REACT_ROUTES = [
+    'hard_dataset',
+]
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/mgms/', include(('mg_manager.api.urls', 'mgms'), namespace='mgms')),
-    re_path('app/.*', TemplateView.as_view(template_name='index.html')),
+    url(r'^silk/', include('silk.urls', namespace='silk')),
+    path('', TemplateView.as_view(template_name='index.html')),
+    url(r'^%s?' % '|'.join(REACT_ROUTES), TemplateView.as_view(template_name='index.html')),
+
+    # re_path('app/.*', TemplateView.as_view(template_name='index.html')),
 ]
