@@ -60,7 +60,7 @@ class Biospecimen(models.Model):
     date_of_collection = models.DateField(blank=True, null=True)
     time_point = models.PositiveIntegerField(blank=True, null=True)
     meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
-    meta_info = models.TextField(blank=True)  # FLAT JSON
+    meta_info = JSONField(blank=True)
 
     class Meta:
         unique_together = ('source', 'name')

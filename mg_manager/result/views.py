@@ -102,45 +102,32 @@ class ResultRequest(APIView):
 
     def post(self, request):
 
-        data = json.loads(request.body)
-        res = data['desired_results']
+        res_request = json.loads(request.body)
+        print(res_request)
 
-        input_objects = res['input_objects']
+        input_objects = res_request['input_objects']
+
         # check that input objects is registered
         if not (input_objects[0] == 'MgSampleFile' or input_objects[0] == 'MgSampleContainer'):
             return Response('Unknown input object', status=status.HTTP_400_BAD_REQUEST)
 
-        # Need to manually create query for every input object type?
-        # Here we check what exists and db and what not
-        for i, input in enumerate(res['input']):
-            if input_objects[0] == 'MgSampleFile':
-                input_obj = get_mg_sample_container_file(
-                    strand=input[input_objects[0]]['strand'],
-                    preproc=input[input_objects[0]]['preproc'],
-                    sample=input[input_objects[0]]['sample'],
-                    df=input[input_objects[0]]['df']
-                )
+        if input_objects[0] == 'MgSampleContainer':
+            containers = MgSampleContainer.objects.select_related("mg_sample")\
+                .select_related("mg_sample__dataset_hard").in_bulk(res_request['input'])
 
-                if input_obj is None:
-                    return Response('No such file', status=status.HTTP_400_BAD_REQUEST)
-                try:
-                    pr = ProfileResult.objects.filter(mg_file=input_obj)
-                    if len(list(pr)) > 0:
-                        res['input'].pop(i)
-                except ProfileResult.DoesNotExist:
-                    print("no such")
+            res_request['input'] = []
+            for cont in containers.values():
+                res_request['input'].append({
+                            'prefix': cont.mg_sample.dataset_hard.fs_prefix,
+                            'df': cont.mg_sample.dataset_hard.df_name,
+                            'sample': cont.mg_sample.name_on_fs,
+                            'preproc': cont.preprocessing
+                        })
+        print(res_request)
 
-            elif input_objects[0] == 'MgSampleContainer':
-                cont = get_mg_sample_container(
-                    df=input[input_objects[0]]['df'],
-                    preproc=input[input_objects[0]]['preproc'],
-                    sample=input[input_objects[0]]['sample'])
-                if cont is None:
-                    return Response('No such container', status=status.HTTP_400_BAD_REQUEST)
-
-        # Make request to asshole
+        # # Make request to asshole
         url = settings.ASSHOLE_URL + 'explorer/request_result/'
         headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
-        r = requests.post(url, data=json.dumps(data), headers=headers)
-
+        r = requests.post(url, data=json.dumps(res_request), headers=headers)
+        print(r)
         return HttpResponse(json.dumps({'start': 'SUCCESS'}), content_type='application/json')

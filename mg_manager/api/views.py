@@ -133,7 +133,7 @@ class RealSampleList(APIView):
                 'time_point': sample.time_point,
                 'name': sample.name,
                 'description': sample.description,
-                'meta_info': meta,
+                'meta_info': sample.meta_info,
                 'mg_samples': mgsamps,
             }
         return HttpResponse(json.dumps(samples_dict), content_type='application/json')
