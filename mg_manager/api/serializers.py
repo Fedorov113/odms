@@ -7,11 +7,26 @@ from odms import settings
 from ..models import *
 from ..result.serializers import ProfileResultSerializer
 
+class EntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Entry
+        fields = '__all__'
 
 class SourceSerializer(serializers.ModelSerializer):
+    entries = EntrySerializer(many=True)
     class Meta:
         model = SampleSource
         fields = '__all__'
+        # extra_fields = ['entries']
+
+    def get_field_names(self, declared_fields, info):
+        expanded_fields = super(SourceSerializer, self).get_field_names(declared_fields, info)
+        if getattr(self.Meta, 'extra_fields', None):
+            return expanded_fields + self.Meta.extra_fields
+        else:
+            return expanded_fields
+
+
 
 class BiospecimenSerializer(serializers.ModelSerializer):
     class Meta:

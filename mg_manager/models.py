@@ -49,8 +49,23 @@ class SampleSource(models.Model):
     meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
     meta_info = JSONField(blank=True)
 
+    created = models.DateTimeField(auto_now_add=True)
+    date_of_inclusion = models.DateField(null=True, blank=True)
+
+
     def __str__(self):
         return self.name
+
+
+class Entry(models.Model):
+    source = models.ForeignKey(SampleSource, on_delete=models.CASCADE, related_name='entries')
+
+    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
+    meta_info = JSONField(blank=True)
+
+    # date_time_of_entry = models.DateTimeField()
+    created = models.DateTimeField(auto_now_add=True)
+    date_of_entry = models.DateField(null=True, blank=True)
 
 
 class Biospecimen(models.Model):
@@ -61,6 +76,7 @@ class Biospecimen(models.Model):
     time_point = models.PositiveIntegerField(blank=True, null=True)
     meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
     meta_info = JSONField(blank=True)
+    created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('source', 'name')

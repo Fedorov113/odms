@@ -8,6 +8,7 @@ from django.db.models import Q, Sum
 
 from rest_framework.exceptions import ErrorDetail, ValidationError
 import os, glob
+from django.core.serializers.json import DjangoJSONEncoder
 
 
 class ImportFromAsshole(APIView):
@@ -67,6 +68,10 @@ class BiospecimenList(generics.ListCreateAPIView):
             kwargs['many'] = True
         return super(BiospecimenList, self).get_serializer(*args, **kwargs)
 
+class EntryList(generics.ListCreateAPIView):
+    serializer_class = EntrySerializer
+    queryset = Entry.objects.all()
+
 
 class SampleSourceList(generics.ListCreateAPIView):
     serializer_class = SampleSourceSerializer
@@ -82,13 +87,19 @@ class SampleSourceList(generics.ListCreateAPIView):
                 meta = json.loads(source.meta_info)
             except:
                 meta = None
+            print(source.meta_schema)
             sources_dict[source.id] = {'id': source.id,
                                        'df': source.df.id,
                                        'name': source.name,
                                        'description': source.description,
                                        'meta_info': source.meta_info,
-                                       'meta_schema': source.meta_schema_id,
-                                       'real_samples': biospecimens}
+                                       # 'meta_schema': source.meta_schema.id,
+                                       'created': source.created,
+                                       'real_samples': biospecimens,
+                                       'date_of_inclusion': source.date_of_inclusion
+                                       }
+            if source.meta_schema is not None:
+                sources_dict[source.id].update({'meta_schema': source.meta_schema.id})
 
         return Response(sources_dict)
 
@@ -96,10 +107,13 @@ class SampleSourceList(generics.ListCreateAPIView):
 
         print('posting source')
         data = request.data
+
         source = SampleSource(df_id=data['df_id'],
                               name=data['name'],
                               description=data['description'],
-                              meta_info=data['meta_info'])
+                              meta_info=data['meta_info'],
+                              date_of_inclusion = data['date_of_inclusion'],
+                              meta_schema=MetaSchema.objects.get(id=data['meta_schema']))
         source.save()
         return HttpResponse(json.dumps('created'), content_type='application/json')
 
@@ -134,9 +148,11 @@ class RealSampleList(APIView):
                 'name': sample.name,
                 'description': sample.description,
                 'meta_info': sample.meta_info,
+                'created': sample.created,
+                'date_of_collection': sample.date_of_collection,
                 'mg_samples': mgsamps,
             }
-        return HttpResponse(json.dumps(samples_dict), content_type='application/json')
+        return HttpResponse(json.dumps(samples_dict, cls=DjangoJSONEncoder), content_type='application/json')
 
     def post(self, request):
         data = request.data

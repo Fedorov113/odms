@@ -13,6 +13,8 @@ urlpatterns = [
     path('source/', SampleSourceList.as_view()),
     path('source/<int:pk>/', SourceDetail.as_view()),
 
+    path('entry/', EntryList.as_view()),
+
     path('schema/', SchemaList.as_view()),
 
     path('dataset_hard/', DatasetHardList.as_view(), name='dataset-hard-list'),
