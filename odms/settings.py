@@ -24,7 +24,10 @@ SECRET_KEY = 'n8ro+-u+5)rg-=d*!63$y-u(=k7o_$!jd8=+27%3_4f4e2w35s'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['odms.ripcm.com']
+ALLOWED_HOSTS = [
+    'odms.ripcm.com',
+    '127.0.0.1'
+]
 CORS_ORIGIN_ALLOW_ALL = True
 
 ASSHOLE_URL = 'http://node6.net0.pyxis.ripcm.com:17777/'
@@ -93,9 +96,9 @@ WSGI_APPLICATION = 'odms.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'mgms_test',
-        'USER': 'mgms',
-        'PASSWORD': 'cafebabe',
+        'NAME': 'odms',
+        'USER': 'postgres',
+        'PASSWORD': 'root',
         'HOST': 'localhost',
         'PORT': '5432',
     }
