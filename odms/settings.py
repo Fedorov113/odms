@@ -28,12 +28,14 @@ ALLOWED_HOSTS = [
     'odms.ripcm.com',
     '127.0.0.1'
 ]
+
 CORS_ORIGIN_ALLOW_ALL = True
 
 ASSHOLE_URL = 'http://node6.net0.pyxis.ripcm.com:17777/'
 # Application definition
 
 INSTALLED_APPS = [
+    'accounts.apps.AccountsConfig',  # added
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,6 +46,7 @@ INSTALLED_APPS = [
     'mg_manager',
     'silk',
     'corsheaders',
+    'knox',  # added
 
 ]
 
@@ -66,10 +69,13 @@ STATICFILES_DIRS = (
 ROOT_URLCONF = 'odms.urls'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.AllowAny',),
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.BasicAuthentication',
-    )
+    # 'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.AllowAny',),
+    # 'DEFAULT_AUTHENTICATION_CLASSES': (
+    #     'rest_framework.authentication.BasicAuthentication',
+    # ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (  # added
+        'knox.auth.TokenAuthentication',
+    ),
 }
 
 TEMPLATES = [
