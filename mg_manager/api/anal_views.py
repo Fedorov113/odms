@@ -23,7 +23,7 @@ class FsContainerList(APIView):
         if source is not None:
             query['source'] = source
 
-        # df = DatasetHard.objects.get(pk=hdf).df_name
+        # df = Study.objects.get(pk=hdf).df_name
         mg_samples = MgSample.objects.filter(**query).prefetch_related('containers').select_related('dataset_hard')
 
         for sample in mg_samples:

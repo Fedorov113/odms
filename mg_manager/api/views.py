@@ -11,26 +11,6 @@ import os, glob
 from django.core.serializers.json import DjangoJSONEncoder
 
 
-class ImportFromAsshole(APIView):
-    """
-    Used to import data from another asshole system.
-    """
-
-    def post(self, request):
-        """
-        Accepts list of folders (dfs) to import
-        :param request:
-        :return:
-        """
-        data = request.data
-        print(data)
-
-        # Find all samples in shortest folder
-        # Construct model objects for samples (container, files, profile)
-        # Repeat for all preprocessings
-
-        return HttpResponse('import view', content_type='application/json')
-
 
 class SourceList(generics.ListCreateAPIView):
     serializer_class = SourceSerializer
@@ -264,91 +244,18 @@ class RealSampleUpdate(APIView):
         return HttpResponse(json.dumps('update'), content_type='application/json')
 
 
-class DatasetHardList(generics.ListCreateAPIView):
-    queryset = DatasetHard.objects.all()
-    serializer_class = DatasetHardSerializer
+class StudyList(generics.ListCreateAPIView):
+    queryset = Study.objects.all()
+    serializer_class = StudySerializer
 
 
-class DatasetHardDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
-    queryset = DatasetHard.objects.all()
-    serializer_class = DatasetHardSerializer
+class StudyDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
+    queryset = Study.objects.all()
+    serializer_class = StudySerializer
 
 
-class DatasetHardFull(generics.ListCreateAPIView):
-    serializer_class = DatasetHardFullSerializer
-    queryset = DatasetHard.objects.all()
+class StudyFull(generics.ListCreateAPIView):
+    serializer_class = StudyFullSerializer
+    queryset = Study.objects.all()
 
 
-class LibraryList(generics.ListCreateAPIView):  # Detail View
-    queryset = Library.objects.all()
-    serializer_class = LibrarySerializer
-
-
-class LibraryDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
-    queryset = Library.objects.all()
-    serializer_class = LibrarySerializer
-
-
-class SequencingRunList(generics.ListCreateAPIView):  # Detail View
-    queryset = SequencingRun.objects.all()
-    serializer_class = SequencingRunSerializer
-
-
-class MgSampleFullList(generics.ListCreateAPIView):
-    serializer_class = MgSampleFullSerializer
-
-    def get_serializer(self, *args, **kwargs):
-        """ if an array is passed, set serializer to many """
-        print('getting serializer')
-        if isinstance(kwargs.get('data', {}), list):
-            print('many')
-            kwargs['many'] = True
-        return super(MgSampleFullList, self).get_serializer(*args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-
-        try:
-            print('check valid')
-            serializer.is_valid(raise_exception=True)
-        except ValidationError:
-            print('not valid....')
-            print(ValidationError.detail)
-        print('checked valid')
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    def get_queryset(self):
-        print('getting sample list queryset')
-
-        qs = MgSample.objects.all()
-        print('sample list queryset')
-        if 'pk' in self.kwargs:
-            hard_df_pk = self.kwargs['pk']
-            print(hard_df_pk)
-            if hard_df_pk is not None:
-                qs = qs.filter(
-                    Q(dataset_hard=hard_df_pk)
-                ).distinct()
-        return qs
-
-
-class MgSampleContainerFileList(generics.ListCreateAPIView):
-    serializer_class = MgSampleContainerFileSerializer
-    queryset = MgFile.objects.all()
-
-
-class MgSampleContainerList(generics.ListCreateAPIView):
-    serializer_class = MgSampleContainerSerializer
-    queryset = MgSampleContainer.objects.all()
-
-
-class MgSampleList(generics.ListCreateAPIView):
-    serializer_class = MgSampleSerializer
-    queryset = MgSample.objects.all()
-
-
-class MgSampleDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
-    queryset = MgSample.objects.all()
-    serializer_class = MgSampleFullSerializer

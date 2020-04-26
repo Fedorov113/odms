@@ -26,7 +26,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'odms.ripcm.com',
-    '127.0.0.1'
+    '127.0.0.1',
+    'localhost'
 ]
 
 CORS_ORIGIN_ALLOW_ALL = True
@@ -102,9 +103,9 @@ WSGI_APPLICATION = 'odms.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'odms',
+        'NAME': 'mgms',
         'USER': 'postgres',
-        'PASSWORD': 'root',
+        'PASSWORD': 'ElectricWizard113',
         'HOST': 'localhost',
         'PORT': '5432',
     }
