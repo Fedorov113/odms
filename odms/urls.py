@@ -15,9 +15,8 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from django.urls import path, include,re_path
+from django.urls import path, include, re_path
 from django.views.generic import TemplateView
-
 
 REACT_ROUTES = [
     'hard_dataset',
@@ -29,6 +28,8 @@ urlpatterns = [
     url(r'^silk/', include('silk.urls', namespace='silk')),
     path('', TemplateView.as_view(template_name='index.html')),
     url(r'^%s?' % '|'.join(REACT_ROUTES), TemplateView.as_view(template_name='index.html')),
+    path('api/auth/', include('accounts.urls'))
+
 
     # re_path('app/.*', TemplateView.as_view(template_name='index.html')),
 ]

@@ -7,13 +7,16 @@ from odms import settings
 from ..models import *
 from ..result.serializers import ProfileResultSerializer
 
+
 class EntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Entry
         fields = '__all__'
 
+
 class SourceSerializer(serializers.ModelSerializer):
     entries = EntrySerializer(many=True)
+
     class Meta:
         model = SampleSource
         fields = '__all__'
@@ -27,11 +30,11 @@ class SourceSerializer(serializers.ModelSerializer):
             return expanded_fields
 
 
-
 class BiospecimenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Biospecimen
         fields = '__all__'
+
 
 class DatasetHardSerializer(serializers.ModelSerializer):
     class Meta:
