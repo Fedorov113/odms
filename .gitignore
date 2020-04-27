@@ -105,3 +105,4 @@ venv.bak/
 
 #idea
 .idea/
+/mg_manager/migrations/0001_initial.py
