@@ -1,26 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="f4a38e6f-78d2-4089-89c6-ce9f6b3a48fb" name="Default Changelist" comment="commit all data === &#10;to start work at login/logout">
-      <change afterPath="$PROJECT_DIR$/mg_manager/migrations/0001_initial.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mg_manager/migrations/0002_auto_20200426_1852.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/odms.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/odms.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/mg_manager/admin.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/api/anal_views.py" beforeDir="false" afterPath="$PROJECT_DIR$/mg_manager/api/anal_views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/api/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/mg_manager/api/serializers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/api/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/mg_manager/api/urls.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/api/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/mg_manager/api/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/mg_manager/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/result/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/result/models.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/result/serializers.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/result/urls.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mg_manager/result/views.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/odms/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/odms/settings.py" afterDir="false" />
-    </list>
+    <list default="true" id="f4a38e6f-78d2-4089-89c6-ce9f6b3a48fb" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -88,6 +69,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="rvereshagin" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="ProjectId" id="1az6ahHOPlGL2dwK8C3A8kvrzXR" />
