@@ -108,3 +108,8 @@ venv.bak/
 /mg_manager/migrations/0001_initial.py
 
 .idea/workspace.xml
+
+odms/__pycache__/__init__.cpython-36.pyc
+        odms/__pycache__/settings.cpython-36.pyc
+        odms/__pycache__/urls.cpython-36.pyc
+        odms/__pycache__/wsgi.cpython-36.pyc
