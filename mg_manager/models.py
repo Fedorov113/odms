@@ -34,11 +34,34 @@ class Study(models.Model):
     # fs_prefix = models.CharField(max_length=1024)
 
 
-    # users = models.ManyToManyField(User)
+    users = models.ManyToManyField(User, through='Membership')
 
     def __str__(self):
         return self.df_name
 
+class Membership(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    study = models.ForeignKey(Study, on_delete=models.CASCADE)
+    date_joined = models.DateField()
+    invite_reason = models.CharField(max_length=64)
+
+    ADMIN = 'ADMIN'
+    PARTICIPANT = 'PARTICIPANT'
+    DOCTOR = 'DOCTOR'
+    SCIENTIST = 'SCIENTIST'
+    GUEST = 'GUEST'
+    ROLES_IN_STUDY_CHOICES = [
+        (ADMIN, 'ADMIN'),
+        (PARTICIPANT, 'PARTICIPANT'),
+        (DOCTOR, 'DOCTOR'),
+        (SCIENTIST, 'SCIENTIST'),
+        (GUEST, 'GUEST'),
+    ]
+    role = models.CharField(
+        max_length=11,
+        choices=ROLES_IN_STUDY_CHOICES,
+        default=GUEST,
+    )
 
 class SampleSource(models.Model):
     df = models.ForeignKey(Study

@@ -1,17 +1,37 @@
 from rest_framework import generics, mixins, viewsets, status
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from django.http import HttpResponse
-import json
-from .serializers import *
-from django.db.models import Q, Sum
-
 from rest_framework.exceptions import ErrorDetail, ValidationError
-import os, glob
+from rest_framework.permissions import IsAuthenticated
+
+from knox.auth import TokenAuthentication
+
+from django.http import HttpResponse
+from django.db.models import Q, Sum
 from django.core.serializers.json import DjangoJSONEncoder
 
+import os, glob, json
+
+from .serializers import *
+
+class StudyList(generics.ListCreateAPIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    
+    queryset = Study.objects.all()
+    serializer_class = StudySerializer
 
 
+class StudyDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
+    queryset = Study.objects.all()
+    serializer_class = StudySerializer
+
+
+class StudyFull(generics.ListCreateAPIView):
+    serializer_class = StudyFullSerializer
+    queryset = Study.objects.all()
+    
 class SourceList(generics.ListCreateAPIView):
     serializer_class = SourceSerializer
 
@@ -155,84 +175,6 @@ class SchemaList(APIView):
         return HttpResponse(json.dumps(schemas_dict), content_type='application/json')
 
 
-class MgSampleNewList(APIView):
-    def get(self, request):
-        resp = {}
-        samples_dict = {}
-        hdf = request.query_params.get('hdf', None)
-        sdf = request.query_params.get('sdf', None)
-        run = request.query_params.get('run', None)
-        lib = request.query_params.get('lib', None)
-        dtype = request.query_params.get('dtype', None)
-        source = request.query_params.get('source', None)
-
-        mg_samples = []
-        mg_sample_ids = []
-        if hdf is not None:
-            mg_samples = MgSample.objects.filter(dataset_hard=hdf) \
-                .prefetch_related('containers') \
-                .prefetch_related('containers__files').select_related('real_sample__source')
-
-        if run is not None:
-            mg_samples = MgSample.objects.filter(sequencing_run=run) \
-                .prefetch_related('containers') \
-                .prefetch_related('containers__files') \
-                .prefetch_related('containers__files__profile').select_related('real_sample__source')
-
-        if source is not None:
-            mg_samples = MgSample.objects.filter(source=source) \
-                .prefetch_related('containers') \
-                .prefetch_related('containers__files') \
-                .prefetch_related('containers__files__profile').select_related('real_sample__source')
-
-        for sample in mg_samples:
-
-            containers = []
-
-            # sample.containers.set(sample.containers.annotate(total_bps=Sum('files__bp')))
-            for container in sample.containers.all():
-                files = []
-                for file in container.files.all():
-                    files.append({'id': file.id,
-                                  'strand': file.strand,
-                                  'bps': file.bps,
-                                  'reads': file.reads,
-                                  'profile': None, })
-
-                containers.append({'files': files,
-                                   'id': container.id,
-                                   'preprocessing': container.preprocessing, })
-
-            samples_dict[sample.id] = {
-                'containers': containers,
-                'id': sample.id,
-                'name': sample.name,
-                'name_on_fs': sample.name_on_fs,
-                "dataset_hard": sample.dataset_hard_id,
-                "real_sample": sample.real_sample_id,
-                "source": sample.source_id,
-                "library": sample.library_id,
-                "sequencing_run": sample.sequencing_run_id,
-            }
-            mg_sample_ids.append(sample.id)
-            if sample.real_sample is not None:
-                samples_dict[sample.id]['source'] = sample.real_sample.source.id
-            else:
-                pass
-
-        resp = {'ids': mg_sample_ids, 'data': samples_dict, }
-        return HttpResponse(json.dumps(resp), content_type='application/json')
-
-
-class MgSampleUpdate(APIView):
-    def put(self, request):
-        data = request.data
-        print(data)
-        for key in data.keys():
-            s, created = MgSample.objects.update_or_create(defaults=data[key], pk=key)
-
-        return HttpResponse(json.dumps('update'), content_type='application/json')
-
 
 class RealSampleUpdate(APIView):
     def put(self, request):
@@ -242,20 +184,5 @@ class RealSampleUpdate(APIView):
             s, created = Biospecimen.objects.update_or_create(defaults=data[key], pk=key)
 
         return HttpResponse(json.dumps('update'), content_type='application/json')
-
-
-class StudyList(generics.ListCreateAPIView):
-    queryset = Study.objects.all()
-    serializer_class = StudySerializer
-
-
-class StudyDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
-    queryset = Study.objects.all()
-    serializer_class = StudySerializer
-
-
-class StudyFull(generics.ListCreateAPIView):
-    serializer_class = StudyFullSerializer
-    queryset = Study.objects.all()
 
 

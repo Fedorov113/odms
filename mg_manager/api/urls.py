@@ -1,9 +1,10 @@
 from django.urls import path, include
-
 from .views import *
-from .anal_views import *
 
 urlpatterns = [
+    path('dataset_hard/', StudyList.as_view(), name='dataset-hard-list'),
+    path('dataset_hard/<int:pk>/', StudyDetail.as_view(), name='dataset-rud'),
+
     path('dataset/<int:df_pk>/source/', SampleSourceList.as_view()),
 
     path('source_/', SourceList.as_view()),
@@ -16,8 +17,6 @@ urlpatterns = [
     path('entry/', EntryList.as_view()),
 
     path('schema/', SchemaList.as_view()),
-    path('dataset_hard/', StudyList.as_view(), name='dataset-hard-list'),
-    path('dataset_hard/<int:pk>/', StudyDetail.as_view(), name='dataset-rud'),
 
     
     path('dataset_hard_full/', StudyFull.as_view(), name='dataset-hard-full'),
