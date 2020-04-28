@@ -18,9 +18,14 @@ from .serializers import *
 class StudyList(generics.ListCreateAPIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
-    
+
     queryset = Study.objects.all()
     serializer_class = StudySerializer
+    # print(self)
+    def get_queryset(self, *args, **kwargs):
+        print(self.request.user)
+        return Study.objects.filter(users=self.request.user)
+        
 
 
 class StudyDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
