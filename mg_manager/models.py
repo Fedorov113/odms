@@ -3,11 +3,13 @@ from django.contrib.postgres.fields import JSONField
 
 from django.contrib.auth.models import User
 
+
 class MetaSchema(models.Model):
     name = models.CharField(max_length=200, unique=True)
     short_name = models.CharField(max_length=30, unique=True,
                                   help_text='Short human readable id of schema. Digits, Letters, _, - allowed.')
     schema = JSONField(blank=True)
+    ui_schema = JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -18,7 +20,7 @@ class Study(models.Model):
     df_name = models.CharField(max_length=200, unique=True)
     df_description = models.CharField(max_length=2000, default='Empty')
 
-    # comes_from = models.CharField(max_length=256, default='Internal')
+    rich_text = models.TextField(null=True, blank=True)
 
     def_source_schema = models.ForeignKey(MetaSchema,
                                           null=True,
@@ -31,13 +33,11 @@ class Study(models.Model):
                                                on_delete=models.SET_NULL,
                                                related_name='def_biospecimen_schema')
 
-    # fs_prefix = models.CharField(max_length=1024)
-
-
     users = models.ManyToManyField(User, through='Membership')
 
     def __str__(self):
         return self.df_name
+
 
 class Membership(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -63,46 +63,48 @@ class Membership(models.Model):
         default=GUEST,
     )
 
+
 class SampleSource(models.Model):
-    df = models.ForeignKey(Study
-, on_delete=models.CASCADE)
+    df = models.ForeignKey(Study, on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200, unique=True)
     description = models.TextField(blank=True, null=True)
     # this one is for connecting to other services
-    ids = models.TextField(blank=True)  # {'service': <identificator>}; {'rcpcm_cdr': 1234dcertr}
-
-    # This needs to be a reference to schema entry
-    # or should we have one main schema and then arbitrary references to entries?
-    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
-    meta_info = JSONField(blank=True)
+    # {'service': <identificator>}; {'rcpcm_cdr': 1234dcertr}
+    ids = models.TextField(blank=True)
 
     created = models.DateTimeField(auto_now_add=True)
     date_of_inclusion = models.DateField(null=True, blank=True)
 
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     def __str__(self):
         return self.name
 
 
 class Entry(models.Model):
-    source = models.ForeignKey(SampleSource, on_delete=models.CASCADE, related_name='entries')
-
-    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
+    source = models.ForeignKey(
+        SampleSource, on_delete=models.CASCADE, related_name='entries')
+    primary = models.BooleanField(default=False)
+    meta_schema = models.ForeignKey(
+        MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
     meta_info = JSONField(blank=True)
 
-    # date_time_of_entry = models.DateTimeField()
     created = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
+
     date_of_entry = models.DateField(null=True, blank=True)
 
 
 class Biospecimen(models.Model):
-    source = models.ForeignKey(SampleSource, on_delete=models.CASCADE, related_name='real_samples')
+    source = models.ForeignKey(
+        SampleSource, on_delete=models.CASCADE, related_name='real_samples')
     description = models.TextField(blank=True)
     name = models.CharField(max_length=200, blank=True)
     date_of_collection = models.DateField(blank=True, null=True)
     time_point = models.PositiveIntegerField(blank=True, null=True)
-    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
+    meta_schema = models.ForeignKey(
+        MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
     meta_info = JSONField(blank=True)
     created = models.DateTimeField(auto_now_add=True)
 

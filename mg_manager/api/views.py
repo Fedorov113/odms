@@ -11,9 +11,12 @@ from django.http import HttpResponse
 from django.db.models import Q, Sum
 from django.core.serializers.json import DjangoJSONEncoder
 
-import os, glob, json
+import os
+import glob
+import json
 
 from .serializers import *
+
 
 class StudyList(generics.ListCreateAPIView):
     authentication_classes = (TokenAuthentication,)
@@ -22,10 +25,9 @@ class StudyList(generics.ListCreateAPIView):
     queryset = Study.objects.all()
     serializer_class = StudySerializer
     # print(self)
+
     def get_queryset(self, *args, **kwargs):
-        print(self.request.user)
         return Study.objects.filter(users=self.request.user)
-        
 
 
 class StudyDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
@@ -36,7 +38,8 @@ class StudyDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
 class StudyFull(generics.ListCreateAPIView):
     serializer_class = StudyFullSerializer
     queryset = Study.objects.all()
-    
+
+
 class SourceList(generics.ListCreateAPIView):
     serializer_class = SourceSerializer
 
@@ -73,13 +76,22 @@ class BiospecimenList(generics.ListCreateAPIView):
             kwargs['many'] = True
         return super(BiospecimenList, self).get_serializer(*args, **kwargs)
 
+
 class EntryList(generics.ListCreateAPIView):
     serializer_class = EntrySerializer
+
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    
     queryset = Entry.objects.all()
 
 
 class SampleSourceList(generics.ListCreateAPIView):
     serializer_class = SampleSourceSerializer
+
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
 
     def list(self, request, **kwargs):
         sources_dict = {}
@@ -87,37 +99,27 @@ class SampleSourceList(generics.ListCreateAPIView):
 
         for source in sources:
             biospecimens = [rs.id for rs in source.real_samples.all()]
-            meta = {}
-            try:
-                meta = json.loads(source.meta_info)
-            except:
-                meta = None
-            print(source.meta_schema)
             sources_dict[source.id] = {'id': source.id,
                                        'df': source.df.id,
                                        'name': source.name,
                                        'description': source.description,
-                                       'meta_info': source.meta_info,
-                                       # 'meta_schema': source.meta_schema.id,
                                        'created': source.created,
                                        'real_samples': biospecimens,
-                                       'date_of_inclusion': source.date_of_inclusion
+                                       'date_of_inclusion': source.date_of_inclusion,
                                        }
-            if source.meta_schema is not None:
-                sources_dict[source.id].update({'meta_schema': source.meta_schema.id})
 
         return Response(sources_dict)
 
     def post(self, request, **kwargs):
 
-        print('posting source')
         data = request.data
 
         source = SampleSource(df_id=data['df_id'],
+                              created_by=self.request.user,
                               name=data['name'],
                               description=data['description'],
                               meta_info=data['meta_info'],
-                              date_of_inclusion = data['date_of_inclusion'],
+                              date_of_inclusion=data['date_of_inclusion'],
                               meta_schema=MetaSchema.objects.get(id=data['meta_schema']))
         source.save()
         return HttpResponse(json.dumps('created'), content_type='application/json')
@@ -127,7 +129,8 @@ class SampleSourceList(generics.ListCreateAPIView):
         if 'df_pk' in self.kwargs:
             hard_df_pk = self.kwargs['df_pk']
             if hard_df_pk is not None:
-                qs = SampleSource.objects.filter(Q(df=hard_df_pk)).prefetch_related('real_samples')
+                qs = SampleSource.objects.filter(
+                    Q(df=hard_df_pk)).prefetch_related('real_samples')
         else:
             qs = SampleSource.objects.all().prefetch_related('real_samples')
 
@@ -174,11 +177,11 @@ class SchemaList(APIView):
             schemas_dict[schema.id] = {
                 'id': schema.id,
                 'name': schema.name,
-                'schema': schema.schema
+                'schema': schema.schema,
+                'ui_schema': schema.ui_schema
             }
 
         return HttpResponse(json.dumps(schemas_dict), content_type='application/json')
-
 
 
 class RealSampleUpdate(APIView):
@@ -186,8 +189,8 @@ class RealSampleUpdate(APIView):
         data = request.data
         print(data)
         for key in data.keys():
-            s, created = Biospecimen.objects.update_or_create(defaults=data[key], pk=key)
+            s, created = Biospecimen.objects.update_or_create(
+                defaults=data[key], pk=key)
 
         return HttpResponse(json.dumps('update'), content_type='application/json')
-
 
