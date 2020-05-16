@@ -12,9 +12,14 @@ class EntrySerializer(serializers.ModelSerializer):
         model = Entry
         fields = '__all__'
 
+class BiospecimenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Biospecimen
+        fields = '__all__'
 
 class SourceSerializer(serializers.ModelSerializer):
     entries = EntrySerializer(many=True)
+    biospecimens = BiospecimenSerializer(many=True)
 
     class Meta:
         model = SampleSource
@@ -29,10 +34,7 @@ class SourceSerializer(serializers.ModelSerializer):
             return expanded_fields
 
 
-class BiospecimenSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Biospecimen
-        fields = '__all__'
+
 
 
 class StudySerializer(serializers.ModelSerializer):
@@ -49,7 +51,7 @@ class StudySerializer(serializers.ModelSerializer):
         return value
 
 
-class RealSampleIdSerializer(serializers.ModelSerializer):
+class BiospecimenIdSerializer(serializers.ModelSerializer):
     # source = serializers.PrimaryKeyRelatedField(required=False, queryset=SampleSource.objects.all())
 
     class Meta:
@@ -58,12 +60,12 @@ class RealSampleIdSerializer(serializers.ModelSerializer):
 
 
 class SampleSourceSerializer(serializers.ModelSerializer):
-    real_samples = RealSampleIdSerializer(many=True)
+    biospecimens = BiospecimenIdSerializer(many=True)
 
     class Meta:
         model = SampleSource
         fields = '__all__'
-        extra_fields = ['real_samples']
+        extra_fields = ['biospecimens']
 
     def get_field_names(self, declared_fields, info):
         expanded_fields = super(SampleSourceSerializer, self).get_field_names(declared_fields, info)

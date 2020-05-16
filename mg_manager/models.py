@@ -97,19 +97,18 @@ class Entry(models.Model):
 
 
 class Biospecimen(models.Model):
-    source = models.ForeignKey(
-        SampleSource, on_delete=models.CASCADE, related_name='real_samples')
+    source = models.ForeignKey(SampleSource, on_delete=models.CASCADE, related_name='biospecimens')
+    
+    name = models.CharField(max_length=200, unique=True)
+    serial_number = models.PositiveIntegerField()
+    biospecimen_type = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    name = models.CharField(max_length=200, blank=True)
-    date_of_collection = models.DateField(blank=True, null=True)
-    time_point = models.PositiveIntegerField(blank=True, null=True)
-    meta_schema = models.ForeignKey(
-        MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
-    meta_info = JSONField(blank=True)
-    created = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ('source', 'name')
+    date_of_collection = models.DateField()
+    time_of_collection = models.TimeField()
+
+    creation_time = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     def __str__(self):
-        return self.source.name + '_' + self.name
+        return self.name
