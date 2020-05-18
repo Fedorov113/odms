@@ -137,9 +137,9 @@ class SampleSourceList(generics.ListCreateAPIView):
                               created_by=self.request.user,
                               name=data['name'],
                               description=data['description'],
-                            #   meta_info=data['meta_info'],
+                              meta_info=data['meta_info'],
                               date_of_inclusion=data['date_of_inclusion'],
-                            #   meta_schema=MetaSchema.objects.get(id=data['meta_schema'])
+                              meta_schema=MetaSchema.objects.get(id=data['meta_schema'])
                               )
         source.save()
         return HttpResponse(json.dumps('created'), content_type='application/json')

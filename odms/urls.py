@@ -31,7 +31,7 @@ urlpatterns = [
     path('api/mgms/', include(('mg_manager.api.urls', 'mgms'), namespace='mgms')),
     url(r'^silk/', include('silk.urls', namespace='silk')),
     path('api/auth/', include('accounts.urls')),
-     path('', TemplateView.as_view(template_name='index.html')),
+    path('', TemplateView.as_view(template_name='index.html')),
     url(r'^%s?' % '|'.join(REACT_ROUTES), TemplateView.as_view(template_name='index.html')),
     # url(r'^', TemplateView.as_view(template_name='index.html')),
 

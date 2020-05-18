@@ -76,6 +76,9 @@ class SampleSource(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     date_of_inclusion = models.DateField(null=True, blank=True)
 
+    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
+    meta_info = JSONField(blank=True)
+    
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     def __str__(self):
