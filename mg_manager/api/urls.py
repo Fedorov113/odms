@@ -17,6 +17,7 @@ urlpatterns = [
     path('entry/', EntryList.as_view()),
 
     path('schema/', SchemaList.as_view()),
+    path('schema_collection/', SchemaCollectionList.as_view()),
 
     
     path('dataset_hard_full/', StudyFull.as_view(), name='dataset-hard-full'),

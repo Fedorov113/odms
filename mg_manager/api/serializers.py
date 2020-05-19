@@ -12,13 +12,45 @@ class EntrySerializer(serializers.ModelSerializer):
         model = Entry
         fields = '__all__'
 
+
 class BiospecimenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Biospecimen
         fields = '__all__'
 
+
+
+
+
+class MetaSchemaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MetaSchema
+        fields = '__all__'
+
+class SchemaCollectionOrderSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.ReadOnlyField(source='schema.id')
+    name = serializers.ReadOnlyField(source='schema.name')
+    class Meta:
+        model = SchemaCollectionOrder
+        fields = ('id', 'name', 'order', )
+
+class SchemaCollectionSerializer(serializers.ModelSerializer):
+    schemas = SchemaCollectionOrderSerializer(source='schemacollectionorder_set', many=True)
+    class Meta:
+        model = SchemaCollection
+        fields = '__all__'
+
+class SchemaCollectionEntrySerializer(serializers.ModelSerializer):
+    # schemas = SchemaCollectionOrderSerializer(source='schemacollectionorder_set', many=True)
+    class Meta:
+        model = CollectionEntry
+        fields = '__all__'
+
+
+
 class SourceSerializer(serializers.ModelSerializer):
     entries = EntrySerializer(many=True)
+    collection_entries = SchemaCollectionEntrySerializer(many=True)
     biospecimens = BiospecimenSerializer(many=True)
 
     class Meta:
@@ -27,13 +59,12 @@ class SourceSerializer(serializers.ModelSerializer):
         # extra_fields = ['entries']
 
     def get_field_names(self, declared_fields, info):
-        expanded_fields = super(SourceSerializer, self).get_field_names(declared_fields, info)
+        expanded_fields = super(SourceSerializer, self).get_field_names(
+            declared_fields, info)
         if getattr(self.Meta, 'extra_fields', None):
             return expanded_fields + self.Meta.extra_fields
         else:
             return expanded_fields
-
-
 
 
 
@@ -68,7 +99,8 @@ class SampleSourceSerializer(serializers.ModelSerializer):
         extra_fields = ['biospecimens']
 
     def get_field_names(self, declared_fields, info):
-        expanded_fields = super(SampleSourceSerializer, self).get_field_names(declared_fields, info)
+        expanded_fields = super(SampleSourceSerializer,
+                                self).get_field_names(declared_fields, info)
         if getattr(self.Meta, 'extra_fields', None):
             return expanded_fields + self.Meta.extra_fields
         else:
@@ -82,7 +114,8 @@ class StudyFullSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_field_names(self, declared_fields, info):
-        expanded_fields = super(StudyFullSerializer, self).get_field_names(declared_fields, info)
+        expanded_fields = super(StudyFullSerializer, self).get_field_names(
+            declared_fields, info)
 
         if getattr(self.Meta, 'extra_fields', None):
             return expanded_fields + self.Meta.extra_fields

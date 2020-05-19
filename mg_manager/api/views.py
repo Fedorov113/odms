@@ -40,32 +40,15 @@ class StudyFull(generics.ListCreateAPIView):
     queryset = Study.objects.all()
 
 
-class SourceList(generics.ListCreateAPIView):
-    serializer_class = SourceSerializer
-
-    def get_serializer(self, *args, **kwargs):
-        """ if an array is passed, set serializer to many """
-        if isinstance(kwargs.get('data', {}), list):
-            kwargs['many'] = True
-        return super(SourceList, self).get_serializer(*args, **kwargs)
-
-    def get_queryset(self):
-        qs = SampleSource.objects.all()
-        if 'df_pk' in self.kwargs:
-            hard_df_pk = self.kwargs['df_pk']
-            print(hard_df_pk)
-            if hard_df_pk is not None:
-                qs = qs.filter(
-                    Q(df=hard_df_pk)
-                ).distinct()
-        return qs
+class SchemaCollectionList(generics.ListCreateAPIView):
+    serializer_class = SchemaCollectionSerializer
+    queryset = SchemaCollection.objects.all()
 
 
 class SourceDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
     queryset = SampleSource.objects.all()
     serializer_class = SourceSerializer
     print('getting source details')
-
 
 
 class BiospecimenList(generics.ListCreateAPIView):
@@ -79,7 +62,7 @@ class BiospecimenList(generics.ListCreateAPIView):
         if isinstance(kwargs.get('data', {}), list):
             kwargs['many'] = True
         return super(BiospecimenList, self).get_serializer(*args, **kwargs)
-    
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
@@ -93,6 +76,7 @@ class BiospecimenList(generics.ListCreateAPIView):
                 ).distinct()
         return qs
 
+
 class EntryList(generics.ListCreateAPIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -103,14 +87,13 @@ class EntryList(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
-    
+
 
 class SampleSourceList(generics.ListCreateAPIView):
     serializer_class = SampleSourceSerializer
 
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
-
 
     def list(self, request, **kwargs):
         sources_dict = {}
@@ -133,15 +116,35 @@ class SampleSourceList(generics.ListCreateAPIView):
 
         data = request.data
 
+        print(data)
+
         source = SampleSource(df_id=data['df_id'],
                               created_by=self.request.user,
                               name=data['name'],
                               description=data['description'],
-                              meta_info=data['meta_info'],
-                              date_of_inclusion=data['date_of_inclusion'],
-                              meta_schema=MetaSchema.objects.get(id=data['meta_schema'])
+                              date_of_inclusion=data['date_of_inclusion']
                               )
         source.save()
+        print('======ID===', source.id)
+
+        collection_entry = CollectionEntry(
+            source_id=source.id,
+            schema_collection_id=data['schema_collection']
+        )
+        collection_entry.save()
+
+        collection_form_data = data['collection_form_data']
+        entries = []
+        for form_data in collection_form_data.keys():
+            entries.append(
+                Entry(source_id=source.id,
+                      collection_entry_id=collection_entry.id,
+                      meta_schema_id=form_data,
+                      date_of_entry=data['date_of_inclusion'],
+                      meta_info=collection_form_data[form_data]),
+            )
+        saved_entries = Entry.objects.bulk_create(entries)
+        print(saved_entries)
         return HttpResponse(json.dumps('created'), content_type='application/json')
 
     def get_queryset(self):
@@ -213,4 +216,3 @@ class BiospecimenUpdate(APIView):
                 defaults=data[key], pk=key)
 
         return HttpResponse(json.dumps('update'), content_type='application/json')
-
