@@ -17,9 +17,12 @@ class MetaSchema(models.Model):
 
 class SchemaCollection(models.Model):
     name = models.CharField(max_length=256)
-    schemas = models.ManyToManyField(MetaSchema, through='SchemaCollectionOrder')
+    schemas = models.ManyToManyField(
+        MetaSchema, through='SchemaCollectionOrder')
+
     def __str__(self):
         return self.name
+
 
 class SchemaCollectionOrder(models.Model):
     order = models.PositiveIntegerField()
@@ -27,9 +30,11 @@ class SchemaCollectionOrder(models.Model):
     collection = models.ForeignKey(SchemaCollection, on_delete=models.CASCADE)
 
     def __str__(self):
-        return str(self.collection) + ' - ' + str(self.schema) 
+        return str(self.collection) + ' - ' + str(self.schema)
+
     class Meta:
         ordering = ('order',)
+
 
 class Study(models.Model):
     full_name = models.CharField(max_length=200)
@@ -50,6 +55,12 @@ class Study(models.Model):
                                                blank=True,
                                                on_delete=models.SET_NULL,
                                                related_name='def_biospecimen_schema')
+
+    subject_regisration_collection = models.ForeignKey(SchemaCollection,
+                                                       null=True,
+                                                       blank=True,
+                                                       on_delete=models.SET_NULL,
+                                                       related_name='subject_regisration_collection')
 
     users = models.ManyToManyField(User, through='Membership')
 
@@ -107,26 +118,22 @@ class SampleSource(models.Model):
         return self.name
 
 
-
-
-
 class CollectionEntry(models.Model):
     source = models.ForeignKey(
         SampleSource, on_delete=models.CASCADE, related_name='collection_entries')
     primary = models.BooleanField(default=False)
     schema_collection = models.ForeignKey(
         MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
-    
 
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
+
 class Entry(models.Model):
     source = models.ForeignKey(
         SampleSource, on_delete=models.CASCADE, related_name='entries')
-
-
-    collection_entry = models.ForeignKey(CollectionEntry, on_delete=models.CASCADE, blank=True, null=True)
+    collection_entry = models.ForeignKey(
+        CollectionEntry, on_delete=models.CASCADE, blank=True, null=True)
 
     primary = models.BooleanField(default=False)
     meta_schema = models.ForeignKey(

@@ -6,9 +6,8 @@ from rest_framework.exceptions import ErrorDetail, ValidationError
 from rest_framework.permissions import IsAuthenticated
 
 from knox.auth import TokenAuthentication
-
 from django.http import HttpResponse
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count
 from django.core.serializers.json import DjangoJSONEncoder
 
 import os
@@ -42,13 +41,14 @@ class StudyFull(generics.ListCreateAPIView):
 
 class SchemaCollectionList(generics.ListCreateAPIView):
     serializer_class = SchemaCollectionSerializer
-    queryset = SchemaCollection.objects.all()
+    queryset = SchemaCollection.objects.all().annotate(
+        numbooks=Count('schemas')
+    )
 
 
 class SourceDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
     queryset = SampleSource.objects.all()
     serializer_class = SourceSerializer
-    print('getting source details')
 
 
 class BiospecimenList(generics.ListCreateAPIView):
@@ -145,7 +145,7 @@ class SampleSourceList(generics.ListCreateAPIView):
             )
         saved_entries = Entry.objects.bulk_create(entries)
         print(saved_entries)
-        return HttpResponse(json.dumps('created'), content_type='application/json')
+        return HttpResponse(json.dumps('created'), content_type='application/json', status=201)
 
     def get_queryset(self):
         qs = None
@@ -192,20 +192,23 @@ class SampleSourceList(generics.ListCreateAPIView):
 #         return HttpResponse(json.dumps('created'), content_type='application/json')
 
 
-class SchemaList(APIView):
-    def get(self, request):
-        schemas_dict = {}
-        schemas = MetaSchema.objects.all()
-        for schema in schemas:
-            schemas_dict[schema.id] = {
-                'id': schema.id,
-                'name': schema.name,
-                'schema': schema.schema,
-                'ui_schema': schema.ui_schema
-            }
+# class SchemaList(APIView):
+#     def get(self, request):
+#         schemas_dict = {}
+#         schemas = MetaSchema.objects.all()
+#         for schema in schemas:
+#             schemas_dict[schema.id] = {
+#                 'id': schema.id,
+#                 'name': schema.name,
+#                 'schema': schema.schema,
+#                 'ui_schema': schema.ui_schema
+#             }
 
-        return HttpResponse(json.dumps(schemas_dict), content_type='application/json')
+#         return HttpResponse(json.dumps(schemas_dict), content_type='application/json')
 
+class SchemaList(generics.ListCreateAPIView):
+    serializer_class = MetaSchemaSerializer
+    queryset = MetaSchema.objects.all()
 
 class BiospecimenUpdate(APIView):
     def put(self, request):
