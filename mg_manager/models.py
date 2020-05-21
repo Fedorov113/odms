@@ -1,23 +1,49 @@
 from django.db import models
 from django.contrib.postgres.fields import JSONField
 
+from django.contrib.auth.models import User
+
 
 class MetaSchema(models.Model):
     name = models.CharField(max_length=200, unique=True)
     short_name = models.CharField(max_length=30, unique=True,
                                   help_text='Short human readable id of schema. Digits, Letters, _, - allowed.')
     schema = JSONField(blank=True)
+    ui_schema = JSONField(blank=True, null=True)
 
     def __str__(self):
         return self.name
 
 
-class DatasetHard(models.Model):
+class SchemaCollection(models.Model):
+    name = models.CharField(max_length=256)
+    schemas = models.ManyToManyField(
+        MetaSchema, through='SchemaCollectionOrder')
+
+    def __str__(self):
+        return self.name
+
+
+class SchemaCollectionOrder(models.Model):
+    order = models.PositiveIntegerField()
+    schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE)
+    collection = models.ForeignKey(SchemaCollection, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(self.collection) + ' - ' + str(self.schema)
+
+    class Meta:
+        ordering = ('order',)
+
+
+class Study(models.Model):
     full_name = models.CharField(max_length=200)
     df_name = models.CharField(max_length=200, unique=True)
     df_description = models.CharField(max_length=2000, default='Empty')
 
-    comes_from = models.CharField(max_length=256, default='Internal')
+    rich_text = models.TextField(null=True, blank=True)
+
+    schemas_in_study = models.ManyToManyField(MetaSchema)
 
     def_source_schema = models.ForeignKey(MetaSchema,
                                           null=True,
@@ -30,149 +56,110 @@ class DatasetHard(models.Model):
                                                on_delete=models.SET_NULL,
                                                related_name='def_biospecimen_schema')
 
-    fs_prefix = models.CharField(max_length=1024)
+    subject_regisration_collection = models.ForeignKey(SchemaCollection,
+                                                       null=True,
+                                                       blank=True,
+                                                       on_delete=models.SET_NULL,
+                                                       related_name='subject_regisration_collection')
+
+    users = models.ManyToManyField(User, through='Membership')
 
     def __str__(self):
         return self.df_name
 
 
+class Membership(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    study = models.ForeignKey(Study, on_delete=models.CASCADE)
+    date_joined = models.DateField()
+    invite_reason = models.CharField(max_length=64)
+
+    ADMIN = 'ADMIN'
+    PARTICIPANT = 'PARTICIPANT'
+    DOCTOR = 'DOCTOR'
+    SCIENTIST = 'SCIENTIST'
+    GUEST = 'GUEST'
+    ROLES_IN_STUDY_CHOICES = [
+        (ADMIN, 'ADMIN'),
+        (PARTICIPANT, 'PARTICIPANT'),
+        (DOCTOR, 'DOCTOR'),
+        (SCIENTIST, 'SCIENTIST'),
+        (GUEST, 'GUEST'),
+    ]
+    role = models.CharField(
+        max_length=11,
+        choices=ROLES_IN_STUDY_CHOICES,
+        default=GUEST,
+    )
+
+    def __str__(self):
+        return str(self.study) + ' - ' + str(self.user)
+
+
 class SampleSource(models.Model):
-    df = models.ForeignKey(DatasetHard, on_delete=models.CASCADE)
+    df = models.ForeignKey(Study, on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200, unique=True)
     description = models.TextField(blank=True, null=True)
     # this one is for connecting to other services
-    ids = models.TextField(blank=True)  # {'service': <identificator>}; {'rcpcm_cdr': 1234dcertr}
-
-    # This needs to be a reference to schema entry
-    # or should we have one main schema and then arbitrary references to entries?
-    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
-    meta_info = JSONField(blank=True)
+    # {'service': <identificator>}; {'rcpcm_cdr': 1234dcertr}
+    ids = models.TextField(blank=True)
 
     created = models.DateTimeField(auto_now_add=True)
     date_of_inclusion = models.DateField(null=True, blank=True)
 
+    meta_schema = models.ForeignKey(
+        MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
+    meta_info = JSONField(blank=True, null=True)
+
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     def __str__(self):
         return self.name
 
 
-class Entry(models.Model):
-    source = models.ForeignKey(SampleSource, on_delete=models.CASCADE, related_name='entries')
+class CollectionEntry(models.Model):
+    source = models.ForeignKey(
+        SampleSource, on_delete=models.CASCADE, related_name='collection_entries')
+    primary = models.BooleanField(default=False)
+    schema_collection = models.ForeignKey(
+        MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
 
-    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
+
+
+class Entry(models.Model):
+    source = models.ForeignKey(
+        SampleSource, on_delete=models.CASCADE, related_name='entries')
+    collection_entry = models.ForeignKey(
+        CollectionEntry, on_delete=models.CASCADE, blank=True, null=True)
+
+    primary = models.BooleanField(default=False)
+    meta_schema = models.ForeignKey(
+        MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
     meta_info = JSONField(blank=True)
 
-    # date_time_of_entry = models.DateTimeField()
     created = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
+
     date_of_entry = models.DateField(null=True, blank=True)
 
 
 class Biospecimen(models.Model):
-    source = models.ForeignKey(SampleSource, on_delete=models.CASCADE, related_name='real_samples')
+    source = models.ForeignKey(
+        SampleSource, on_delete=models.CASCADE, related_name='biospecimens')
+
+    name = models.CharField(max_length=200, unique=True)
+    serial_number = models.PositiveIntegerField()
+    biospecimen_type = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    name = models.CharField(max_length=200, blank=True)
-    date_of_collection = models.DateField(blank=True, null=True)
-    time_point = models.PositiveIntegerField(blank=True, null=True)
-    meta_schema = models.ForeignKey(MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
-    meta_info = JSONField(blank=True)
-    created = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ('source', 'name')
+    date_of_collection = models.DateField()
+    time_of_collection = models.TimeField()
 
-    def __str__(self):
-        return self.source.name + '_' + self.name
-
-
-class Library(models.Model):
-    library_name = models.CharField(max_length=200, unique=True)
-    date_of_preparation = models.DateField()
-    description = models.TextField()
-
-    def __str__(self):
-        return self.library_name
-
-
-class SequencingRun(models.Model):
-    name = models.CharField(max_length=200)
-    short_name = models.CharField(max_length=32, unique=True)
-    platform = models.CharField(max_length=200)
-    date_of_run = models.DateField()
-    description = models.TextField()
-
-    def __str__(self):
-        return self.name + ' ' + self.platform
-
-
-class MgSample(models.Model):
-    dataset_hard = models.ForeignKey(DatasetHard, on_delete=models.CASCADE, related_name='samples')
-    real_sample = models.ForeignKey(Biospecimen, on_delete=models.CASCADE, blank=True, null=True,
-                                    related_name='mg_samples')
-    source = models.ForeignKey(SampleSource, on_delete=models.CASCADE, blank=True, null=True)
-
-    name = models.CharField(max_length=200, blank=True)
-    name_on_fs = models.CharField(max_length=200, blank=True)
-
-    library = models.ForeignKey(Library, on_delete=models.CASCADE, blank=True, null=True)
-    sequencing_run = models.ForeignKey(SequencingRun, on_delete=models.CASCADE, blank=True, null=True)
-
-    class Meta:
-        unique_together = ('dataset_hard', 'name_on_fs', 'library', 'sequencing_run')
-
-    def __str__(self):
-        return self.name
-
-
-class MgSampleContainer(models.Model):
-    mg_sample = models.ForeignKey(MgSample, related_name='containers', on_delete=models.CASCADE)
-
-    preprocessing = models.CharField(max_length=512)
-
-    def __str__(self):
-        return self.mg_sample.name + ' ' + self.preprocessing
-
-
-def sample_file_path(instance, filename):
-    return '{df}/{preproc}/{sample}/{strand}/fastqc/{file}.png'.format(
-        df=instance.container.mg_sample.dataset_hard.df_name,
-        preproc=instance.container.preprocessing,
-        sample=instance.container.mg_sample.name_on_fs,
-        strand=instance.strand,
-        file=filename)
-
-
-class MgFile(models.Model):
-    container = models.ForeignKey(MgSampleContainer, related_name='files', on_delete=models.CASCADE)
-
-    R1 = 'R1'
-    R2 = 'R2'
-    S = 'S'
-
-    STRAND_CHOICES = (
-        (R1, 'R1'),
-        (R2, 'R2'),
-        (S, 'S')
-    )
-
-    strand = models.CharField(max_length=3, choices=STRAND_CHOICES, default=S)
-
-    # NOT BLANK IF IT IS IMPORTED FROM SOMEWHERE
-    orig_file_location = models.CharField(max_length=1024, blank=True)
-    import_success = models.BooleanField(default=False)
-
-    bps = models.BigIntegerField(default=-1)
-    reads = models.BigIntegerField(default=-1)
-    size = models.BigIntegerField(default=-1)
-
-    def __str__(self):
-        return self.container.__str__() + ' ' + self.strand
-
-
-class DatasetSoft(models.Model):
-    name = models.CharField(max_length=256, unique=True)
-    df_description = models.CharField(max_length=1024, default='Empty')
-    dataset_soft = models.ManyToManyField(MgSample, blank=True)
+    creation_time = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
     def __str__(self):
         return self.name

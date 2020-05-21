@@ -1,56 +1,49 @@
 from rest_framework import generics, mixins, viewsets, status
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from django.http import HttpResponse
-import json
-from .serializers import *
-from django.db.models import Q, Sum
-
 from rest_framework.exceptions import ErrorDetail, ValidationError
-import os, glob
+from rest_framework.permissions import IsAuthenticated
+
+from knox.auth import TokenAuthentication
+from django.http import HttpResponse
+from django.db.models import Q, Sum, Count
 from django.core.serializers.json import DjangoJSONEncoder
 
+import os
+import glob
+import json
 
-class ImportFromAsshole(APIView):
-    """
-    Used to import data from another asshole system.
-    """
-
-    def post(self, request):
-        """
-        Accepts list of folders (dfs) to import
-        :param request:
-        :return:
-        """
-        data = request.data
-        print(data)
-
-        # Find all samples in shortest folder
-        # Construct model objects for samples (container, files, profile)
-        # Repeat for all preprocessings
-
-        return HttpResponse('import view', content_type='application/json')
+from .serializers import *
 
 
-class SourceList(generics.ListCreateAPIView):
-    serializer_class = SourceSerializer
+class StudyList(generics.ListCreateAPIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
 
-    def get_serializer(self, *args, **kwargs):
-        """ if an array is passed, set serializer to many """
-        if isinstance(kwargs.get('data', {}), list):
-            kwargs['many'] = True
-        return super(SourceList, self).get_serializer(*args, **kwargs)
+    queryset = Study.objects.all()
+    serializer_class = StudySerializer
+    # print(self)
 
-    def get_queryset(self):
-        qs = SampleSource.objects.all()
-        if 'df_pk' in self.kwargs:
-            hard_df_pk = self.kwargs['df_pk']
-            print(hard_df_pk)
-            if hard_df_pk is not None:
-                qs = qs.filter(
-                    Q(df=hard_df_pk)
-                ).distinct()
-        return qs
+    def get_queryset(self, *args, **kwargs):
+        return Study.objects.filter(users=self.request.user)
+
+
+class StudyDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
+    queryset = Study.objects.all()
+    serializer_class = StudySerializer
+
+
+class StudyFull(generics.ListCreateAPIView):
+    serializer_class = StudyFullSerializer
+    queryset = Study.objects.all()
+
+
+class SchemaCollectionList(generics.ListCreateAPIView):
+    serializer_class = SchemaCollectionSerializer
+    queryset = SchemaCollection.objects.all().annotate(
+        numbooks=Count('schemas')
+    )
 
 
 class SourceDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
@@ -59,8 +52,10 @@ class SourceDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
 
 
 class BiospecimenList(generics.ListCreateAPIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = BiospecimenSerializer
-    queryset = Biospecimen.objects.all()
 
     def get_serializer(self, *args, **kwargs):
         """ if an array is passed, set serializer to many """
@@ -68,287 +63,159 @@ class BiospecimenList(generics.ListCreateAPIView):
             kwargs['many'] = True
         return super(BiospecimenList, self).get_serializer(*args, **kwargs)
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def get_queryset(self):
+        qs = Biospecimen.objects.all()
+        if 'source_pk' in self.kwargs:
+            source_pk = self.kwargs['source_pk']
+            if source_pk is not None:
+                qs = qs.filter(
+                    Q(source=source_pk)
+                ).distinct()
+        return qs
+
+
 class EntryList(generics.ListCreateAPIView):
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     serializer_class = EntrySerializer
+
     queryset = Entry.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
 class SampleSourceList(generics.ListCreateAPIView):
     serializer_class = SampleSourceSerializer
+
+    authentication_classes = (TokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
 
     def list(self, request, **kwargs):
         sources_dict = {}
         sources = self.get_queryset()
 
         for source in sources:
-            biospecimens = [rs.id for rs in source.real_samples.all()]
-            meta = {}
-            try:
-                meta = json.loads(source.meta_info)
-            except:
-                meta = None
-            print(source.meta_schema)
+            biospecimens = [rs.id for rs in source.biospecimens.all()]
             sources_dict[source.id] = {'id': source.id,
                                        'df': source.df.id,
                                        'name': source.name,
                                        'description': source.description,
-                                       'meta_info': source.meta_info,
-                                       # 'meta_schema': source.meta_schema.id,
                                        'created': source.created,
-                                       'real_samples': biospecimens,
-                                       'date_of_inclusion': source.date_of_inclusion
+                                       'biospecimens': biospecimens,
+                                       'date_of_inclusion': source.date_of_inclusion,
                                        }
-            if source.meta_schema is not None:
-                sources_dict[source.id].update({'meta_schema': source.meta_schema.id})
 
         return Response(sources_dict)
 
     def post(self, request, **kwargs):
 
-        print('posting source')
         data = request.data
 
+        print(data)
+
         source = SampleSource(df_id=data['df_id'],
+                              created_by=self.request.user,
                               name=data['name'],
                               description=data['description'],
-                              meta_info=data['meta_info'],
-                              date_of_inclusion = data['date_of_inclusion'],
-                              meta_schema=MetaSchema.objects.get(id=data['meta_schema']))
+                              date_of_inclusion=data['date_of_inclusion']
+                              )
         source.save()
-        return HttpResponse(json.dumps('created'), content_type='application/json')
+        print('======ID===', source.id)
+
+        collection_entry = CollectionEntry(
+            source_id=source.id,
+            schema_collection_id=data['schema_collection']
+        )
+        collection_entry.save()
+
+        collection_form_data = data['collection_form_data']
+        entries = []
+        for form_data in collection_form_data.keys():
+            entries.append(
+                Entry(source_id=source.id,
+                      collection_entry_id=collection_entry.id,
+                      meta_schema_id=form_data,
+                      date_of_entry=data['date_of_inclusion'],
+                      meta_info=collection_form_data[form_data]),
+            )
+        saved_entries = Entry.objects.bulk_create(entries)
+        print(saved_entries)
+        return HttpResponse(json.dumps('created'), content_type='application/json', status=201)
 
     def get_queryset(self):
         qs = None
         if 'df_pk' in self.kwargs:
             hard_df_pk = self.kwargs['df_pk']
             if hard_df_pk is not None:
-                qs = SampleSource.objects.filter(Q(df=hard_df_pk)).prefetch_related('real_samples')
+                qs = SampleSource.objects.filter(
+                    Q(df=hard_df_pk)).prefetch_related('biospecimens')
         else:
-            qs = SampleSource.objects.all().prefetch_related('real_samples')
+            qs = SampleSource.objects.all().prefetch_related('biospecimens')
 
         return qs
 
 
-class RealSampleList(APIView):
-    def get(self, request):
-        samples_dict = {}
-        rsamples = Biospecimen.objects.all().prefetch_related('mg_samples')
-        print(len(rsamples))
-        for sample in rsamples:
-            meta = {}
-            try:
-                meta = json.loads(sample.meta_info)
-            except:
-                meta = None
-            mgsamps = [rs.id for rs in sample.mg_samples.all()]
-            samples_dict[sample.id] = {
-                'id': sample.id,
-                'source': sample.source_id,
-                'time_point': sample.time_point,
-                'name': sample.name,
-                'description': sample.description,
-                'meta_info': sample.meta_info,
-                'created': sample.created,
-                'date_of_collection': sample.date_of_collection,
-                'mg_samples': mgsamps,
-            }
-        return HttpResponse(json.dumps(samples_dict, cls=DjangoJSONEncoder), content_type='application/json')
+# class BiospecimenList(APIView):
+#     def get(self, request):
+#         samples_dict = {}
+#         rsamples = Biospecimen.objects.all().prefetch_related('mg_samples')
+#         print(len(rsamples))
+#         for sample in rsamples:
+#             meta = {}
+#             try:
+#                 meta = json.loads(sample.meta_info)
+#             except:
+#                 meta = None
+#             mgsamps = [rs.id for rs in sample.mg_samples.all()]
+#             samples_dict[sample.id] = {
+#                 'id': sample.id,
+#                 'source': sample.source_id,
+#                 'time_point': sample.time_point,
+#                 'name': sample.name,
+#                 'description': sample.description,
+#                 'meta_info': sample.meta_info,
+#                 'created': sample.created,
+#                 'date_of_collection': sample.date_of_collection,
+#                 'mg_samples': mgsamps,
+#             }
+#         return HttpResponse(json.dumps(samples_dict, cls=DjangoJSONEncoder), content_type='application/json')
 
-    def post(self, request):
-        data = request.data
-        real_sample = Biospecimen(**data)
-        real_sample.save()
-        return HttpResponse(json.dumps('created'), content_type='application/json')
-
-
-class SchemaList(APIView):
-    def get(self, request):
-        schemas_dict = {}
-        schemas = MetaSchema.objects.all()
-        for schema in schemas:
-            schemas_dict[schema.id] = {
-                'id': schema.id,
-                'name': schema.name,
-                'schema': schema.schema
-            }
-
-        return HttpResponse(json.dumps(schemas_dict), content_type='application/json')
+#     def post(self, request):
+#         data = request.data
+#         real_sample = Biospecimen(**data)
+#         real_sample.save()
+#         return HttpResponse(json.dumps('created'), content_type='application/json')
 
 
-class MgSampleNewList(APIView):
-    def get(self, request):
-        resp = {}
-        samples_dict = {}
-        hdf = request.query_params.get('hdf', None)
-        sdf = request.query_params.get('sdf', None)
-        run = request.query_params.get('run', None)
-        lib = request.query_params.get('lib', None)
-        dtype = request.query_params.get('dtype', None)
-        source = request.query_params.get('source', None)
+# class SchemaList(APIView):
+#     def get(self, request):
+#         schemas_dict = {}
+#         schemas = MetaSchema.objects.all()
+#         for schema in schemas:
+#             schemas_dict[schema.id] = {
+#                 'id': schema.id,
+#                 'name': schema.name,
+#                 'schema': schema.schema,
+#                 'ui_schema': schema.ui_schema
+#             }
 
-        mg_samples = []
-        mg_sample_ids = []
-        if hdf is not None:
-            mg_samples = MgSample.objects.filter(dataset_hard=hdf) \
-                .prefetch_related('containers') \
-                .prefetch_related('containers__files').select_related('real_sample__source')
+#         return HttpResponse(json.dumps(schemas_dict), content_type='application/json')
 
-        if run is not None:
-            mg_samples = MgSample.objects.filter(sequencing_run=run) \
-                .prefetch_related('containers') \
-                .prefetch_related('containers__files') \
-                .prefetch_related('containers__files__profile').select_related('real_sample__source')
+class SchemaList(generics.ListCreateAPIView):
+    serializer_class = MetaSchemaSerializer
+    queryset = MetaSchema.objects.all()
 
-        if source is not None:
-            mg_samples = MgSample.objects.filter(source=source) \
-                .prefetch_related('containers') \
-                .prefetch_related('containers__files') \
-                .prefetch_related('containers__files__profile').select_related('real_sample__source')
-
-        for sample in mg_samples:
-
-            containers = []
-
-            # sample.containers.set(sample.containers.annotate(total_bps=Sum('files__bp')))
-            for container in sample.containers.all():
-                files = []
-                for file in container.files.all():
-                    files.append({'id': file.id,
-                                  'strand': file.strand,
-                                  'bps': file.bps,
-                                  'reads': file.reads,
-                                  'profile': None, })
-
-                containers.append({'files': files,
-                                   'id': container.id,
-                                   'preprocessing': container.preprocessing, })
-
-            samples_dict[sample.id] = {
-                'containers': containers,
-                'id': sample.id,
-                'name': sample.name,
-                'name_on_fs': sample.name_on_fs,
-                "dataset_hard": sample.dataset_hard_id,
-                "real_sample": sample.real_sample_id,
-                "source": sample.source_id,
-                "library": sample.library_id,
-                "sequencing_run": sample.sequencing_run_id,
-            }
-            mg_sample_ids.append(sample.id)
-            if sample.real_sample is not None:
-                samples_dict[sample.id]['source'] = sample.real_sample.source.id
-            else:
-                pass
-
-        resp = {'ids': mg_sample_ids, 'data': samples_dict, }
-        return HttpResponse(json.dumps(resp), content_type='application/json')
-
-
-class MgSampleUpdate(APIView):
+class BiospecimenUpdate(APIView):
     def put(self, request):
         data = request.data
         print(data)
         for key in data.keys():
-            s, created = MgSample.objects.update_or_create(defaults=data[key], pk=key)
+            s, created = Biospecimen.objects.update_or_create(
+                defaults=data[key], pk=key)
 
         return HttpResponse(json.dumps('update'), content_type='application/json')
-
-
-class RealSampleUpdate(APIView):
-    def put(self, request):
-        data = request.data
-        print(data)
-        for key in data.keys():
-            s, created = Biospecimen.objects.update_or_create(defaults=data[key], pk=key)
-
-        return HttpResponse(json.dumps('update'), content_type='application/json')
-
-
-class DatasetHardList(generics.ListCreateAPIView):
-    queryset = DatasetHard.objects.all()
-    serializer_class = DatasetHardSerializer
-
-
-class DatasetHardDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
-    queryset = DatasetHard.objects.all()
-    serializer_class = DatasetHardSerializer
-
-
-class DatasetHardFull(generics.ListCreateAPIView):
-    serializer_class = DatasetHardFullSerializer
-    queryset = DatasetHard.objects.all()
-
-
-class LibraryList(generics.ListCreateAPIView):  # Detail View
-    queryset = Library.objects.all()
-    serializer_class = LibrarySerializer
-
-
-class LibraryDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
-    queryset = Library.objects.all()
-    serializer_class = LibrarySerializer
-
-
-class SequencingRunList(generics.ListCreateAPIView):  # Detail View
-    queryset = SequencingRun.objects.all()
-    serializer_class = SequencingRunSerializer
-
-
-class MgSampleFullList(generics.ListCreateAPIView):
-    serializer_class = MgSampleFullSerializer
-
-    def get_serializer(self, *args, **kwargs):
-        """ if an array is passed, set serializer to many """
-        print('getting serializer')
-        if isinstance(kwargs.get('data', {}), list):
-            print('many')
-            kwargs['many'] = True
-        return super(MgSampleFullList, self).get_serializer(*args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-
-        try:
-            print('check valid')
-            serializer.is_valid(raise_exception=True)
-        except ValidationError:
-            print('not valid....')
-            print(ValidationError.detail)
-        print('checked valid')
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    def get_queryset(self):
-        print('getting sample list queryset')
-
-        qs = MgSample.objects.all()
-        print('sample list queryset')
-        if 'pk' in self.kwargs:
-            hard_df_pk = self.kwargs['pk']
-            print(hard_df_pk)
-            if hard_df_pk is not None:
-                qs = qs.filter(
-                    Q(dataset_hard=hard_df_pk)
-                ).distinct()
-        return qs
-
-
-class MgSampleContainerFileList(generics.ListCreateAPIView):
-    serializer_class = MgSampleContainerFileSerializer
-    queryset = MgFile.objects.all()
-
-
-class MgSampleContainerList(generics.ListCreateAPIView):
-    serializer_class = MgSampleContainerSerializer
-    queryset = MgSampleContainer.objects.all()
-
-
-class MgSampleList(generics.ListCreateAPIView):
-    serializer_class = MgSampleSerializer
-    queryset = MgSample.objects.all()
-
-
-class MgSampleDetail(generics.RetrieveUpdateDestroyAPIView):  # Detail View
-    queryset = MgSample.objects.all()
-    serializer_class = MgSampleFullSerializer

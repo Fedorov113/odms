@@ -5,29 +5,13 @@ from rest_framework import serializers
 
 from odms import settings
 from ..models import *
-from ..result.serializers import ProfileResultSerializer
 
+from rest_framework.utils.serializer_helpers import ReturnDict
 
 class EntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = Entry
         fields = '__all__'
-
-
-class SourceSerializer(serializers.ModelSerializer):
-    entries = EntrySerializer(many=True)
-
-    class Meta:
-        model = SampleSource
-        fields = '__all__'
-        # extra_fields = ['entries']
-
-    def get_field_names(self, declared_fields, info):
-        expanded_fields = super(SourceSerializer, self).get_field_names(declared_fields, info)
-        if getattr(self.Meta, 'extra_fields', None):
-            return expanded_fields + self.Meta.extra_fields
-        else:
-            return expanded_fields
 
 
 class BiospecimenSerializer(serializers.ModelSerializer):
@@ -36,21 +20,102 @@ class BiospecimenSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class DatasetHardSerializer(serializers.ModelSerializer):
+class DictSerializer(serializers.ListSerializer):
+    """
+    Overrides default ListSerializer to return a dict with a custom field from
+    each item as the key. Makes it easier to normalize the data so that there
+    is minimal nesting. dict_key defaults to 'id' but can be overridden.
+    """
+    dict_key = 'id'
+
+    @property
+    def data(self):
+        """
+        Overriden to return a ReturnDict instead of a ReturnList.
+        """
+        ret = super(serializers.ListSerializer, self).data
+        return ReturnDict(ret, serializer=self)
+
+    def to_representation(self, data):
+        """
+        Converts the data from a list to a dictionary.
+        """
+        items = super(DictSerializer, self).to_representation(data)
+        return {item[self.dict_key]: item for item in items}
+
+
+class MetaSchemaSerializer(serializers.ModelSerializer):
     class Meta:
-        model = DatasetHard
+        model = MetaSchema
+        fields = '__all__'
+        list_serializer_class = DictSerializer
+
+
+class SchemaCollectionOrderSerializer(serializers.HyperlinkedModelSerializer):
+    schema_id = serializers.ReadOnlyField(source='schema.id')
+    id = serializers.ReadOnlyField(source='schema.id')
+    # schema = MetaSchemaSerializer()
+
+    class Meta:
+        model = SchemaCollectionOrder
+        fields = ('id', 'schema_id', 'order', )
+
+
+class SchemaCollectionSerializer(serializers.ModelSerializer):
+    schemas = SchemaCollectionOrderSerializer(
+        source='schemacollectionorder_set', many=True)
+    num_schemas_in_collection = serializers.SerializerMethodField(read_only=True)
+
+    def get_num_schemas_in_collection(self, schema_collection):
+        return schema_collection.schemas.count()
+
+    class Meta:
+        model = SchemaCollection
+        fields = '__all__'
+
+
+class SchemaCollectionEntrySerializer(serializers.ModelSerializer):
+    # schemas = SchemaCollectionOrderSerializer(source='schemacollectionorder_set', many=True)
+    class Meta:
+        model = CollectionEntry
+        fields = '__all__'
+        list_serializer_class = DictSerializer
+
+
+class SourceSerializer(serializers.ModelSerializer):
+    entries = EntrySerializer(many=True)
+    collection_entries = SchemaCollectionEntrySerializer(many=True)
+    biospecimens = BiospecimenSerializer(many=True)
+
+    class Meta:
+        model = SampleSource
+        fields = '__all__'
+        # extra_fields = ['entries']
+
+    def get_field_names(self, declared_fields, info):
+        expanded_fields = super(SourceSerializer, self).get_field_names(
+            declared_fields, info)
+        if getattr(self.Meta, 'extra_fields', None):
+            return expanded_fields + self.Meta.extra_fields
+        else:
+            return expanded_fields
+
+
+class StudySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Study
         fields = '__all__'
 
     def validate_df_name(self, value):
-        qs = DatasetHard.objects.filter(df_name__iexact=value)
+        qs = Study.objects.filter(df_name__iexact=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise serializers.ValidationError("The Dataset name must be unique")
+            raise serializers.ValidationError("Study name must be unique")
         return value
 
 
-class RealSampleIdSerializer(serializers.ModelSerializer):
+class BiospecimenIdSerializer(serializers.ModelSerializer):
     # source = serializers.PrimaryKeyRelatedField(required=False, queryset=SampleSource.objects.all())
 
     class Meta:
@@ -59,140 +124,31 @@ class RealSampleIdSerializer(serializers.ModelSerializer):
 
 
 class SampleSourceSerializer(serializers.ModelSerializer):
-    real_samples = RealSampleIdSerializer(many=True)
+    biospecimens = BiospecimenIdSerializer(many=True)
 
     class Meta:
         model = SampleSource
         fields = '__all__'
-        extra_fields = ['real_samples']
+        extra_fields = ['biospecimens']
 
     def get_field_names(self, declared_fields, info):
-        expanded_fields = super(SampleSourceSerializer, self).get_field_names(declared_fields, info)
+        expanded_fields = super(SampleSourceSerializer,
+                                self).get_field_names(declared_fields, info)
         if getattr(self.Meta, 'extra_fields', None):
             return expanded_fields + self.Meta.extra_fields
         else:
             return expanded_fields
 
 
-class SequencingRunSerializer(serializers.ModelSerializer):
+class StudyFullSerializer(serializers.ModelSerializer):
+
     class Meta:
-        model = SequencingRun
+        model = Study
         fields = '__all__'
-
-
-class LibrarySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Library
-        fields = '__all__'
-
-
-class MgFileSerializer(serializers.ModelSerializer):
-    container = serializers.PrimaryKeyRelatedField(required=False, queryset=MgSampleContainer.objects.all())
-    profile = ProfileResultSerializer(many=True, required=False)
-
-    class Meta:
-        model = MgFile
-        fields = ['id', 'container', 'strand', 'profile', 'orig_file_location', 'size', 'bps', 'reads']
-
-
-class MgSampleContainerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MgSampleContainer
-        fields = '__all__'
-
-
-class MgSampleContainerFileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MgFile
-        fields = ['id', 'strand', 'container']
-
-
-class MgSampleFileContainerSerializer(serializers.ModelSerializer):
-    files = MgFileSerializer(many=True)
-    mg_sample = serializers.PrimaryKeyRelatedField(required=False, queryset=MgSample.objects.all())
-
-    class Meta:
-        model = MgSampleContainer
-        # fields = ['files', 'preprocessing']
-        fields = '__all__'
-        extra_fields = ['files']
 
     def get_field_names(self, declared_fields, info):
-        expanded_fields = super(MgSampleFileContainerSerializer, self).get_field_names(declared_fields, info)
-
-        if getattr(self.Meta, 'extra_fields', None):
-            return expanded_fields + self.Meta.extra_fields
-        else:
-            return expanded_fields
-
-
-class MgSampleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MgSample
-        fields = '__all__'
-
-
-class MgSampleFullSerializer(serializers.ModelSerializer):
-    df = serializers.PrimaryKeyRelatedField(required=False, queryset=DatasetHard.objects.all())
-    containers = MgSampleFileContainerSerializer(many=True)
-
-    class Meta:
-        model = MgSample
-        fields = '__all__'
-        extra_fields = ['containers']
-
-    def get_field_names(self, declared_fields, info):
-        print('getting field names')
-        expanded_fields = super(MgSampleFullSerializer, self).get_field_names(declared_fields, info)
-        if getattr(self.Meta, 'extra_fields', None):
-            return expanded_fields + self.Meta.extra_fields
-        else:
-            return expanded_fields
-
-    def create(self, validated_data):
-        print('creating')
-
-        if 'containers' in validated_data.keys():
-            containers_data = validated_data.pop('containers')
-            mg_sample = MgSample.objects.create(**validated_data)
-
-            for container_data in containers_data:
-                if 'files' in container_data.keys():
-                    files_data = container_data.pop('files')
-                    cont = MgSampleContainer.objects.create(mg_sample=mg_sample, **container_data)
-                    for file_data in files_data:
-                        new_file = MgFile(container=cont, **file_data)
-                        print(file_data)
-                        if new_file.orig_file_location != '':
-                            data = {
-                                'orig_file': new_file.orig_file_location,
-                                'df': mg_sample.dataset_hard.df_name,
-                                'strand': new_file.strand,
-                                'sample': mg_sample.name_on_fs,
-                            }
-                            url = settings.ASSHOLE_URL + 'api/fs/sample/import/'
-                            r = requests.post(url, data=json.dumps(data))
-
-                            if r.status_code == 201:
-                                new_file.import_success = True
-                                new_file.save()
-                        else:
-                            new_file.save()
-            return mg_sample
-        else:
-            return MgSample.objects.create(**validated_data)
-
-
-class DatasetHardFullSerializer(serializers.ModelSerializer):
-    samples = MgSampleFullSerializer(many=True)
-
-    class Meta:
-        model = DatasetHard
-        fields = '__all__'
-        extra_fields = ['samples']
-
-    def get_field_names(self, declared_fields, info):
-        expanded_fields = super(DatasetHardFullSerializer, self).get_field_names(declared_fields, info)
+        expanded_fields = super(StudyFullSerializer, self).get_field_names(
+            declared_fields, info)
 
         if getattr(self.Meta, 'extra_fields', None):
             return expanded_fields + self.Meta.extra_fields
