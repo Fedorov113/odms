@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 
 import os
+from datetime import timedelta
+from rest_framework.settings import api_settings
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -70,13 +72,13 @@ STATICFILES_DIRS = (
 ROOT_URLCONF = 'odms.urls'
 
 REST_FRAMEWORK = {
-    # 'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.AllowAny',),
-    # 'DEFAULT_AUTHENTICATION_CLASSES': (
-    #     'rest_framework.authentication.BasicAuthentication',
-    # ),
     'DEFAULT_AUTHENTICATION_CLASSES': (  # added
         'knox.auth.TokenAuthentication',
     ),
+}
+
+REST_KNOX = {
+  'TOKEN_TTL': timedelta(hours=168)
 }
 
 TEMPLATES = [

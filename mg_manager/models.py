@@ -128,12 +128,14 @@ class CollectionEntry(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)
 
+    def __str__(self):
+        return str(self.source) + '--' + str(self.schema_collection)
 
 class Entry(models.Model):
     source = models.ForeignKey(
         SampleSource, on_delete=models.CASCADE, related_name='entries')
     collection_entry = models.ForeignKey(
-        CollectionEntry, on_delete=models.CASCADE, blank=True, null=True)
+        CollectionEntry, on_delete=models.CASCADE, blank=True, null=True, related_name='collection_entries')
 
     primary = models.BooleanField(default=False)
     meta_schema = models.ForeignKey(
