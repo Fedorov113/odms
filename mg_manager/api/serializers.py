@@ -79,7 +79,7 @@ class SchemaCollectionSerializer(serializers.ModelSerializer):
 
 
 class CollectionEntrySerializer(serializers.ModelSerializer):
-    collection_entries = serializers.PrimaryKeyRelatedField(
+    entries_in_collection = serializers.PrimaryKeyRelatedField(
         many=True, read_only=True)
 
     class Meta:

@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'silk',
     'corsheaders',
     'knox',  # added
-
+    'django_extensions'
 ]
 
 MIDDLEWARE = [
@@ -78,7 +78,7 @@ REST_FRAMEWORK = {
 }
 
 REST_KNOX = {
-  'TOKEN_TTL': timedelta(hours=168)
+    'TOKEN_TTL': timedelta(hours=168)
 }
 
 TEMPLATES = [

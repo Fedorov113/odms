@@ -135,7 +135,7 @@ class Entry(models.Model):
     source = models.ForeignKey(
         SampleSource, on_delete=models.CASCADE, related_name='entries')
     collection_entry = models.ForeignKey(
-        CollectionEntry, on_delete=models.CASCADE, blank=True, null=True, related_name='collection_entries')
+        CollectionEntry, on_delete=models.CASCADE, blank=True, null=True, related_name='entries_in_collection')
 
     primary = models.BooleanField(default=False)
     meta_schema = models.ForeignKey(
