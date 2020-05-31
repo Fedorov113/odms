@@ -123,7 +123,7 @@ class CollectionEntry(models.Model):
         SampleSource, on_delete=models.CASCADE, related_name='collection_entries')
     primary = models.BooleanField(default=False)
     schema_collection = models.ForeignKey(
-        MetaSchema, on_delete=models.CASCADE, blank=True, null=True)
+        SchemaCollection, on_delete=models.CASCADE, blank=True, null=True)
 
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True)

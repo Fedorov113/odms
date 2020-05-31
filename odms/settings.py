@@ -105,11 +105,11 @@ WSGI_APPLICATION = 'odms.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'obrp',
-        'USER': 'postgres',
-        'PASSWORD': 'ElectricWizard113',
+        'NAME': 'prod_db',
+        'USER': 'obrp_admin',
+        'PASSWORD': 'cafebabe',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '6433',
     }
 }
 
